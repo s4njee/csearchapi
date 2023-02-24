@@ -19,6 +19,13 @@ module.exports = async function (fastify, opts) {
       access_type: "offline", // will tell Google to send a refreshToken too
     },
   });
+  fastify.decorate("authenticate", async function (request, reply) {
+    try {
+      await request.jwtVerify();
+    } catch (err) {
+      reply.send(err);
+    }
+  });
   fastify.post("/login", function (request, reply) {
     console.log(JSON.parse(request.body));
     // this.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow(
@@ -64,4 +71,67 @@ module.exports = async function (fastify, opts) {
         reply.send(json);
       });
   });
+
+  fastify.post(
+    "/addVote",
+    {
+      onRequest: [fastify.authenticate],
+    },
+    function (request, reply) {
+      body = JSON.parse(request.body);
+      var votes;
+      db.knex
+        .select("votes")
+        .from("bills")
+        .where(`billid`, body.billid)
+        .then((votes) => {
+          this.votes = votes;
+        });
+      if (!votes || !votes.includes(body.email)) {
+        db.knex
+          .raw(
+            `UPDATE bills SET votes = (
+            CASE
+                WHEN votes IS NULL THEN '[]'::JSONB
+                ELSE votes
+            END
+        ) || ?::JSONB WHERE billid = ?;
+              UPDATE bills SET votecount = ${votes.length}; WHERE billid =  ?;
+        `,
+            [`["${body.email}"]`, body.billid, body.billid]
+          )
+          .then((result) => {
+            reply.send(result);
+          });
+      }
+    }
+  );
+  fastify.post(
+    "/removeVote",
+    {
+      onRequest: [fastify.authenticate],
+    },
+    function (request, reply) {
+      body = JSON.parse(request.body);
+      db.knex("bills")
+        .select("votes")
+        .where(`billid`, body.billid)
+        .then((votes) => {
+          votes = votes[0].votes;
+          console.log(votes);
+          if (votes && votes.includes(body.email)) {
+            db.knex
+              .raw(
+                `UPDATE bills SET votes = votes - ?::text WHERE billid = ?;
+                UPDATE bills SET votecount = ${votes.length}; WHERE billid =  ?;`,
+
+                [body.email, body.billid]
+              )
+              .then((result) => {
+                reply.send(result);
+              });
+          }
+        });
+    }
+  );
 };

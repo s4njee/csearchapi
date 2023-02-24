@@ -12,11 +12,13 @@ spec:
       labels:
         app: csearch-api
     spec:
+      imagePullSecrets:
+        - name: regcred
       containers:
         - name: csearch-api
-          image: 10.0.0.3:30955/csearchapi
+          image: registry.s8njee.com/csearchapi
           ports:
-            - containerPort: 3001
+            - containerPort: 3000
           env:
             - name: DB_URI
               value: "postgresql://postgres:postgres@postgres:5432/csearch"
@@ -39,7 +41,7 @@ spec:
     app: csearch-api
   ports:
     - port: 80
-      targetPort: 3001
+      targetPort: 3000
 
 ---
 apiVersion: networking.k8s.io/v1

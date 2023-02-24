@@ -15,12 +15,14 @@ module.exports = async function (fastify, opts) {
         "billnumber",
         "sponsors",
         "cosponsors",
-        "statusat"
+        "statusat",
+        "votes"
       )
-      .from("bills")
-      .whereRaw("statusat::date between current_date - 365 and current_date")
+      .from("public.bills")
+      .whereRaw("statusat::date between current_date - 14 and current_date")
       .where({ billtype: `${request.params.billtype}` })
       .orderBy("statusat", "desc")
+      .orderBy("billid", "desc")
       .limit(60)
       .then((results) => {
         console.log(results);
